@@ -15,8 +15,6 @@
 
 > ⚠️ Для корректной работы предварительно нужно установить `debconf-utils`, иначе предварительное заполнение пароля может не сработать.
 
-![Структура LDAP](screenshots/ldap_structure.png)
-
 ## Структура проекта
 
 ```
@@ -101,8 +99,6 @@ ldapsearch -x -D "cn=admin,dc=test" -w AdminPass123 -b "dc=test"
 sudo systemctl status slapd
 ```
 
-![Статус slapd](screenshots/slapd_status.png)
-
 * Сброс пароля администратора (если нужно):
 
 ```bash
@@ -110,15 +106,11 @@ sudo slappasswd -s AdminPass123
 ldapmodify -Y EXTERNAL -H ldapi:/// -f update_admin.ldif
 ```
 
-![Сброс пароля](screenshots/reset_admin_password.png)
-
 * Проверка структуры LDAP:
 
 ```bash
 ldapsearch -x -LLL -b "dc=test"
 ```
-
-![Проверка структуры LDAP](screenshots/check_structure.png)
 
 ## Скриншоты результата
 
