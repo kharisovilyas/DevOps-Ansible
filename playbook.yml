@@ -1,0 +1,64 @@
+---
+- name: Install and configure OpenLDAP
+  hosts: ldap_server
+  become: yes
+
+  vars:
+    ldap_domain: "test"
+    ldap_org: "TestOrg"
+    ldap_admin_password: "AdminPass123"
+
+  tasks:
+    - name: Install OpenLDAP server and utils
+      apt:
+        name:
+          - slapd
+          - ldap-utils
+        state: present
+        update_cache: yes
+
+    - name: Preseed slapd configuration
+      debconf:
+        name: slapd
+        question: "{{ item.question }}"
+        value: "{{ item.value }}"
+        vtype: "{{ item.vtype }}"
+      loop:
+        - { question: "slapd/internal/generated_adminpw", value: "{{ ldap_admin_password }}", vtype: "password" }
+        - { question: "slapd/internal/adminpw",           value: "{{ ldap_admin_password }}", vtype: "password" }
+        - { question: "slapd/password1",                  value: "{{ ldap_admin_password }}", vtype: "password" }
+        - { question: "slapd/password2",                  value: "{{ ldap_admin_password }}", vtype: "password" }
+        - { question: "slapd/domain",                     value: "{{ ldap_domain }}", vtype: "string" }
+        - { question: "slapd/organization",               value: "{{ ldap_org }}", vtype: "string" }
+        - { question: "slapd/backend",                    value: "MDB", vtype: "select" }
+        - { question: "slapd/purge_database",             value: "true", vtype: "boolean" }
+        - { question: "slapd/move_old_database",          value: "true", vtype: "boolean" }
+
+    - name: Reconfigure slapd (noninteractive)
+      command: dpkg-reconfigure -f noninteractive slapd
+
+    - name: Copy base LDIF
+      copy:
+        src: files/base.ldif
+        dest: /tmp/base.ldif
+
+    - name: Add base structure
+      command: ldapadd -x -D "cn=admin,dc=test" -w "{{ ldap_admin_password }}" -f /tmp/base.ldif
+      args:
+        creates: /etc/ldap/base_added
+
+    - name: Copy users LDIF
+      copy:
+        src: files/users.ldif
+        dest: /tmp/users.ldif
+
+    - name: Add users
+      command: ldapadd -x -D "cn=admin,dc=test" -w "{{ ldap_admin_password }}" -f /tmp/users.ldif
+
+    - name: Copy groups LDIF
+      copy:
+        src: files/groups.ldif
+        dest: /tmp/groups.ldif
+
+    - name: Add groups
+      command: ldapadd -x -D "cn=admin,dc=test" -w "{{ ldap_admin_password }}" -f /tmp/groups.ldif

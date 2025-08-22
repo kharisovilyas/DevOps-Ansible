@@ -1,0 +1,13 @@
+dn: uid=user1,ou=users,dc=test
+objectClass: inetOrgPerson
+sn: User1
+cn: User One
+uid: user1
+userPassword: password1
+
+dn: uid=user2,ou=users,dc=test
+objectClass: inetOrgPerson
+sn: User2
+cn: User Two
+uid: user2
+userPassword: password2
