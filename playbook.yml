@@ -1,64 +1,99 @@
 ---
 - name: Install and configure OpenLDAP
-  hosts: ldap_server
+  hosts: localhost
   become: yes
-
   vars:
-    ldap_domain: "test"
-    ldap_org: "TestOrg"
     ldap_admin_password: "AdminPass123"
+    ldap_domain: "test"
+    ldap_organization: "TestOrg"
 
   tasks:
-    - name: Install OpenLDAP server and utils
-      apt:
-        name:
-          - slapd
-          - ldap-utils
-        state: present
-        update_cache: yes
 
-    - name: Preseed slapd configuration
-      debconf:
-        name: slapd
-        question: "{{ item.question }}"
-        value: "{{ item.value }}"
-        vtype: "{{ item.vtype }}"
-      loop:
-        - { question: "slapd/internal/generated_adminpw", value: "{{ ldap_admin_password }}", vtype: "password" }
-        - { question: "slapd/internal/adminpw",           value: "{{ ldap_admin_password }}", vtype: "password" }
-        - { question: "slapd/password1",                  value: "{{ ldap_admin_password }}", vtype: "password" }
-        - { question: "slapd/password2",                  value: "{{ ldap_admin_password }}", vtype: "password" }
-        - { question: "slapd/domain",                     value: "{{ ldap_domain }}", vtype: "string" }
-        - { question: "slapd/organization",               value: "{{ ldap_org }}", vtype: "string" }
-        - { question: "slapd/backend",                    value: "MDB", vtype: "select" }
-        - { question: "slapd/purge_database",             value: "true", vtype: "boolean" }
-        - { question: "slapd/move_old_database",          value: "true", vtype: "boolean" }
+  - name: Ensure debconf-utils is installed
+    apt:
+      name: debconf-utils
+      state: present
+      update_cache: yes
 
-    - name: Reconfigure slapd (noninteractive)
-      command: dpkg-reconfigure -f noninteractive slapd
+  - name: Install OpenLDAP server and utils
+    apt:
+      name:
+        - slapd
+        - ldap-utils
+      state: present
 
-    - name: Copy base LDIF
-      copy:
-        src: files/base.ldif
-        dest: /tmp/base.ldif
+  - name: Preseed slapd configuration
+    shell: |
+      echo "slapd internal/generated_adminpw password {{ ldap_admin_password }}" | debconf-set-selections
+      echo "slapd internal/adminpw password {{ ldap_admin_password }}" | debconf-set-selections
+      echo "slapd/password1 password {{ ldap_admin_password }}" | debconf-set-selections
+      echo "slapd/password2 password {{ ldap_admin_password }}" | debconf-set-selections
+      echo "slapd/domain string {{ ldap_domain }}" | debconf-set-selections
+      echo "slapd/organization string {{ ldap_organization }}" | debconf-set-selections
+      echo "slapd/backend select MDB" | debconf-set-selections
+      echo "slapd/purge_database boolean true" | debconf-set-selections
+      echo "slapd/move_old_database boolean true" | debconf-set-selections
+    args:
+      creates: /etc/ldap/slapd.d
 
-    - name: Add base structure
-      command: ldapadd -x -D "cn=admin,dc=test" -w "{{ ldap_admin_password }}" -f /tmp/base.ldif
-      args:
-        creates: /etc/ldap/base_added
+  - name: Reconfigure slapd (noninteractive)
+    command: dpkg-reconfigure -f noninteractive slapd
+    args:
+      creates: /etc/ldap/slapd.d
 
-    - name: Copy users LDIF
-      copy:
-        src: files/users.ldif
-        dest: /tmp/users.ldif
+  - name: Check if base structure exists
+    command: ldapsearch -x -D "cn=admin,dc={{ ldap_domain }}" -w "{{ ldap_admin_password }}" -b "ou=users,dc={{ ldap_domain }}" "(objectClass=organizationalUnit)"
+    register: base_exists
+    failed_when: false
+    changed_when: false
 
-    - name: Add users
-      command: ldapadd -x -D "cn=admin,dc=test" -w "{{ ldap_admin_password }}" -f /tmp/users.ldif
+  - name: Copy base LDIF
+    copy:
+      src: files/base.ldif
+      dest: /tmp/base.ldif
+      force: no
 
-    - name: Copy groups LDIF
-      copy:
-        src: files/groups.ldif
-        dest: /tmp/groups.ldif
+  - name: Add base structure
+    command: ldapadd -x -D "cn=admin,dc={{ ldap_domain }}" -w "{{ ldap_admin_password }}" -f /tmp/base.ldif
+    when: base_exists.stdout.find("ou=users") == -1
+    register: base_structure
+    changed_when: "'adding new entry' in base_structure.stdout"
+    failed_when: "'already exists' not in base_structure.stdout and base_structure.rc != 0"
 
-    - name: Add groups
-      command: ldapadd -x -D "cn=admin,dc=test" -w "{{ ldap_admin_password }}" -f /tmp/groups.ldif
+  - name: Check if users exist
+    command: ldapsearch -x -D "cn=admin,dc={{ ldap_domain }}" -w "{{ ldap_admin_password }}" -b "ou=users,dc={{ ldap_domain }}" "(uid=user1)"
+    register: user1_exists
+    failed_when: false
+    changed_when: false
+
+  - name: Copy users LDIF
+    copy:
+      src: files/users.ldif
+      dest: /tmp/users.ldif
+      force: no
+
+  - name: Add users
+    command: ldapadd -x -D "cn=admin,dc={{ ldap_domain }}" -w "{{ ldap_admin_password }}" -f /tmp/users.ldif
+    when: user1_exists.stdout.find("uid=user1") == -1
+    register: users_add
+    changed_when: "'adding new entry' in users_add.stdout"
+    failed_when: "'already exists' not in users_add.stdout and users_add.rc != 0"
+
+  - name: Check if groups exist
+    command: ldapsearch -x -D "cn=admin,dc={{ ldap_domain }}" -w "{{ ldap_admin_password }}" -b "ou=groups,dc={{ ldap_domain }}" "(cn=group1)"
+    register: group1_exists
+    failed_when: false
+    changed_when: false
+
+  - name: Copy groups LDIF
+    copy:
+      src: files/groups.ldif
+      dest: /tmp/groups.ldif
+      force: no
+
+  - name: Add groups
+    command: ldapadd -x -D "cn=admin,dc={{ ldap_domain }}" -w "{{ ldap_admin_password }}" -f /tmp/groups.ldif
+    when: group1_exists.stdout.find("cn=group1") == -1
+    register: groups_add
+    changed_when: "'adding new entry' in groups_add.stdout"
+    failed_when: "'already exists' not in groups_add.stdout and groups_add.rc != 0"
