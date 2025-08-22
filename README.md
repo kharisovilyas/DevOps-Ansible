@@ -15,6 +15,8 @@
 
 > ⚠️ Для корректной работы предварительно нужно установить `debconf-utils`, иначе предварительное заполнение пароля может не сработать.
 
+![Структура LDAP](screenshots/ldap_structure.png)
+
 ## Структура проекта
 
 ```
@@ -28,6 +30,8 @@ ansible-ldap/
 └── README.md             # данный файл
 ```
 
+![Структура проекта](screenshots/project_structure.png)
+
 ## Настройка и запуск
 
 ### 1. Установка зависимостей
@@ -36,6 +40,8 @@ ansible-ldap/
 sudo apt update
 sudo apt install ansible debconf-utils -y
 ```
+
+![Установка зависимостей](screenshots/install_deps.png)
 
 ### 2. Конфигурация инвентаря
 
@@ -55,6 +61,8 @@ localhost ansible_connection=local
 10.1.8.154 ansible_user=ubuntu ansible_ssh_pass=YOUR_PASSWORD
 ```
 
+![Inventory Configuration](screenshots/inventory_config.png)
+
 ### 3. Запуск playbook
 
 ```bash
@@ -67,6 +75,8 @@ ansible-playbook -i inventory.ini playbook.yml
 ansible-playbook -i localhost, -c local playbook.yml
 ```
 
+![Запуск playbook](screenshots/run_playbook.png)
+
 ## Проверка работы LDAP
 
 1. Проверка пользователей и групп:
@@ -74,6 +84,8 @@ ansible-playbook -i localhost, -c local playbook.yml
 ```bash
 ldapsearch -x -D "cn=admin,dc=test" -w AdminPass123 -b "dc=test"
 ```
+
+![Результат ldapsearch](screenshots/ldapsearch_result.png)
 
 2. Должны появиться:
 
@@ -89,6 +101,8 @@ ldapsearch -x -D "cn=admin,dc=test" -w AdminPass123 -b "dc=test"
 sudo systemctl status slapd
 ```
 
+![Статус slapd](screenshots/slapd_status.png)
+
 * Сброс пароля администратора (если нужно):
 
 ```bash
@@ -96,11 +110,15 @@ sudo slappasswd -s AdminPass123
 ldapmodify -Y EXTERNAL -H ldapi:/// -f update_admin.ldif
 ```
 
+![Сброс пароля](screenshots/reset_admin_password.png)
+
 * Проверка структуры LDAP:
 
 ```bash
 ldapsearch -x -LLL -b "dc=test"
 ```
+
+![Проверка структуры LDAP](screenshots/check_structure.png)
 
 ## Скриншоты результата
 
@@ -111,3 +129,5 @@ ldapsearch -x -D "cn=admin,dc=test" -w AdminPass123 -b "dc=test"
 ```
 
 и сделать скриншот вывода, где видны OU, пользователи и группы.
+
+![Финальный результат](screenshots/final_result.png)
