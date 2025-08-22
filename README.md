@@ -39,8 +39,6 @@ sudo apt update
 sudo apt install ansible debconf-utils -y
 ```
 
-![Установка зависимостей](screenshots/install_deps.png)
-
 ### 2. Конфигурация инвентаря
 
 Если вы запускаете playbook **на локальной машине**, используйте `localhost`:
@@ -58,8 +56,6 @@ localhost ansible_connection=local
 [ldap_server]
 10.1.8.154 ansible_user=ubuntu ansible_ssh_pass=YOUR_PASSWORD
 ```
-
-![Inventory Configuration](screenshots/inventory_config.png)
 
 ### 3. Запуск playbook
 
@@ -83,7 +79,7 @@ ansible-playbook -i localhost, -c local playbook.yml
 ldapsearch -x -D "cn=admin,dc=test" -w AdminPass123 -b "dc=test"
 ```
 
-![Результат ldapsearch](screenshots/ldapsearch_result.png)
+![Результат ldapsearch](screenshots/final_result.png)
 
 2. Должны появиться:
 
